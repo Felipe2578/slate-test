@@ -22,7 +22,7 @@ meta:
 ---
 
 # Introdução
-Bem vindo ao Raas Payment, nessa documentação vamos te mostrar como usar e acessar as APIs e endpoints.
+Bem vindo ao RaaS Payment, nessa documentação vamos te mostrar como usar e acessar as APIs e endpoints.
 
 
 
@@ -30,16 +30,9 @@ Bem vindo ao Raas Payment, nessa documentação vamos te mostrar como usar e ace
 
 # Autenticação
 
-## Login
-```shell
-curl -d '{"username":"string", "password":"string", "client_id":"string", "clientsecret":"string", "scope":"string"}' 
--H "Content-Type: application/json" 
--X POST https://totvsraas.rac.dev.totvs.app/totvs.rac/connect/token
-
-```
+## Login 
 
 > Exemplo de Resposta de sucesso
-
 
 ```json
 {
@@ -48,11 +41,12 @@ curl -d '{"username":"string", "password":"string", "client_id":"string", "clien
     "token_type": "Bearer"
 }
 ```
-Esse endpoint pode ser usado para realizar login. O Serviço de autenticação JWT (JSON Web Token) gerado através das 6 chaves de autenticação de Usuário (username, password, client_id, client_secret, grant_type e scope ) criadas com o cadastro do usuário.
+Esse endpoint pode ser usado para realizar login.
+O Serviço de autenticação JWT (JSON Web Token) é gerado através das 6 chaves de autenticação de Usuário (username, password, client_id, client_secret, grant_type e scope ) criadas com o cadastro do usuário.
 
 ### HTTP Request
 
-`POST https://totvsraas.rac.dev.totvs.app/totvs.rac/connect/token`
+`POST https://{tenant}.rac.dev.totvs.app/totvs.rac/connect/token`
 
 ### Body
 
@@ -67,7 +61,733 @@ client_id| string |Id do usuário com o perfil ROAcessorUser
 clientsecret | string |totvsraas@12345
 scope| string| openid authorization_api
 
+### Atenção
+<aside class="warning">Antes da expiração do access_token, deve-se solicitar um novo token. Caso um token expirado seja utilizado, as APIs do RaaS.Payments irão retornar 401.</aside>
 
+# Processo de Pagamento
+
+## Métodos de Pagamento
+
+> CURL 
+
+```shell
+curl --location --request GET 'https://qa.raas.varejo.totvs.com.br/pay-hub/transacting/api/v3/
+payment/link/methods/availables/491' \
+--header 'Authorization: Bearer Token
+```
+
+Esse endpoint é utilizado para solicitar os métodos de pagamento.
+
+Os métodos de pagamento são gerados através das chaves de autenticação (Host, User-Agent, Accept, Accept-Encoding e Connection). 
+Após a solicitação, a API retornará os métodos disponíveis. Para realizar o envio da requisição é necessário inserir o Bearer Token.
+
+### HTTP Request
+
+`GET  https://{{env}}.raas.varejo.totvs.com.br/pay-hub/transacting/api/v3/payment/link/methods/availables/`   
+
+> 200 - Success
+
+```shell
+{
+    "processorMessage": "success",
+    "errorReason": null,
+    "paymentMethods": [
+        {
+            "id": "8ccda171-84e3-4a5e-8f5e-8755e8e2ea9b",
+            "pixDictKey": null,
+            "pixPsp": null,
+            "name": "Shipay Pagador",
+            "code": "shipaypagador",
+            "logo": "data:image/png;base64, token
+            "processorDigitalWallets": [
+                {
+                    "processorId": "11981610-e15e-4b7b-829a-534c3e02cab0",
+                    "externalCode": "shipay-pagador",
+                    "_expandables": [
+                        "processor"
+                    ]
+                }
+            ],
+            "_expandables": [
+                "processorDigitalWallets"
+            ]
+        },
+        {
+            "id": "b50b0939-2161-4bd5-9ee3-3f3cf3e79d4b",
+            "pixDictKey": "administrativo@shipay.com.br",
+            "pixPsp": "itau",
+            "name": "Pix",
+            "code": "pix",
+            "logo": "data:image/png;base64,
+            "processorDigitalWallets": [
+                {
+                    "processorId": "11981610-e15e-4b7b-829a-534c3e02cab0",
+                    "externalCode": "pix",
+                    "_expandables": [
+                        "processor"
+                    ]
+                }
+            ],
+            "_expandables": [
+                "processorDigitalWallets"
+            ]
+        }
+    ]
+}
+```
+
+
+> 400 - Bad Request
+
+```shell
+{
+  "code": "string",
+  "message": "string",
+  "detailedMessage": "string",
+  "helpUrl": "string",
+  "details": [
+    {
+      "guid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      "notificationType": 0,
+      "code": "string",
+      "message": "string",
+      "detailedMessage": "string", 
+      "status": 0
+    }
+  ]
+}
+```
+
+* Responses: 
+    * 200 - Success
+    * 400 - Bad Request
+
+### Body
+
+Os parâmetros da requisição devem ser enviados em formato json.
+
+### Legenda
+
+* 200 - Success    
+    1. **name -** *Nome da carteira para exibição.*
+    2. **code -** *Código da carteira no PaymentHub, exemplo: pix.*
+    3. **logo -** *Logo da carteira em base64.*
+
+* 400 - Bad Request    
+    1. **detailedMessage -** *Mensagem que deve ser exibida na tela quando retornar 400.*
+  
+
+
+## Gerar Link para Pagamento
+
+> CURL
+
+```shell
+curl --location --request POST 'https://qa.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2/payment/link' \
+--header 'Authorization: Bearer Token
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "externalPosId": "carnaval",
+  "externalBusinessUnitId": "491",
+  "externalTransactionId": "741651",
+  "amount": "0.13",
+  "currency": "BRL",
+  "customer": {
+    // "id": "2e3be1d1-b79b-4025-bbe6-ff49bf9b9653",
+    "email": "Khalid50@hotmail.com",
+    "locale": "PT-BR",
+    "name": "names",
+    "ssn": "38893966000178"
+  },
+  //"expirationDate": "2022-07-08T16:47:51.667Z",
+  "wallet": "pix"
+//   "due": {
+//         "dueDate": "08/04/2022",
+//         "dayValidAfterDue": 0,
+//         "amountDetails": {
+//         "rebate": {
+//             "value": 2.0,
+//             "modality": "FixedAmount"
+//             }
+//        }
+//     }
+}'
+```
+
+
+Esse endpoint é utilizado para gerar link para pagamento. 
+
+Após receber o retorno dos métodos de pagamento disponíveis, será necessário solicitar um link de pagamento (QR CODE), através da requisição POST
+descrita abaixo. Para essa solicitação deve ser utilizada as chaves de autenticação (Content-Type, Content-Length, Host, User-Agent, Accept, Accept-Encoding e Connection).
+
+
+### HTTP Request
+
+
+`POST https://{{env}}.raas.varejo.totvs.com.br/pay-hub/transacting
+/api/v2/payment/link`
+
+* Responses: 
+    * 201 - Created
+    * 400 - Bad Request
+
+> Preenchimento de exemplo no Body
+
+```shell
+{
+  "externalPosId": "{{external_pos_id}}",
+  "externalBusinessUnitId": "{{external_business_unit_id}}",
+  "externalTransactionId": "{{$randomInt}}{{$randomInt}}",
+  "amount": "0.13",
+  "currency": "BRL",
+  "customer": {
+    // "id": "{{$guid}}",
+    "email": "{{$randomEmail}}",
+    "locale": "PT-BR",
+    "name": "names",
+    "ssn": "38893966000178"
+  },
+  //"expirationDate": "{{current_time}}",
+  "wallet": "pix"
+//   "due": {
+//         "dueDate": "08/04/2022",
+//         "dayValidAfterDue": 0,
+//         "amountDetails": {
+//         "rebate": {
+//             "value": 2.0,
+//             "modality": "FixedAmount"
+//             }
+//        }
+//     }
+}
+```
+
+> 201 - Created 
+
+```shell
+{
+    "transactionId": "2d05b65c-0860-4742-9182-a98096380c39",
+    "externalTransactionId": "460229",
+    "externalBusinessUnitId": "491",
+    "amount": 0.13,
+    "currency": "BRL",
+    "expiresAt": "2022-07-14 15:42:13.722524",
+    "link": "00020101021226770014br.gov.bcb.pix2555api.itau/pix/qr/v2/6ff47066-3101-4f0d-b405-c3aa280cd8a152040000530398654040.005802BR5925000 novo com store id exi6008SaoPaulo62070503***630479A4",
+    "processorTransactionId": "9e19ab8d-972e-4543-964b-83f9781963ac",
+    "processorName": "Totvs Pagamentos",
+    "message": "success",
+    "processorMessage": "success",
+    "errorReason": null,
+    "qrCode": "token qr code",    
+    "qrCodeText": "00020101021226770014br.gov.bcb.pix2555api.itau/pix/qr/v2/eed3f243-e863-49e7-9019-b77fbb95619
+    852040000530398654040.135802BR5925000 novo com store id exi6008SaoPaulo62070503***63048A39", 
+    "wallet": "pix",
+    "pixPsp": "itau",
+    "_expandables": []
+}
+```
+
+> 400 - Bad Request 
+
+```shell
+{
+    "code": "Zvpebfbsg.NfcArgPber.Zip.GasPbagebyyre+Reebe.2",
+    "message": "Erro ao salvar 'Payment Link'",
+    "detailedMessage": "AspNetCoreOnPostError",
+    "helpUrl": "",
+    "details": [
+        {
+            "guid": "83dccc0f-1948-4c8c-aa26-f2ee498f770f",
+            "code": "Ennf.Cnlzragf.Genafnpgvat.Qbznva.GenafnpgvbaNttertngr.Genafnpgvba+Reebe.6",
+            "message": "Uma transação deve ter uma moeda.",
+            "detailedMessage": "TransactionShouldHaveCurrency"
+        }
+    ]
+}     
+```
+
+### Body
+
+Os parâmetros da requisição devem ser enviados em formato json.
+
+Conforme exemplo de preenchimento do body, os retornos são os representados na coluna shell. 
+
+### Legenda 
+
+* 201 - Created    
+    1. **transactionId:** *Id da transação no PaymentHub.*
+    2. **externalTransactionId:** *Identificador da transação para o utilizador da API. (Ex. Identificador da transação no ERP).*
+    3. **Link:** Link para o pagamento. *No caso de Pix, utilizar copia e cola.*
+    4. **processorTransactionId:** *Id da transação na processadora do pagamento.*
+    5. **processorName:** *Nome da processadora que realizou a transação.*
+    6. **QrCode:** *Imagem do QrCode em base64. Este é o que deve ser exibido para o cliente.*
+    7. **qrCodeText:** *Texto contido no QrCode. Deve ser utilizado apenas para depuração.*
+    8. **pixPsp:** *Para qual psp foi realizado aquele pix. Ex: Itaú.*
+
+
+### Observação
+<aside class="warning">O parâmetro "currency" que está localizado no Body, foi utilizado da seguinte forma: "currency": "B". Portanto é obtida a resposta 400.</aside>
+
+## Status do Pagamento
+
+> CURL
+
+```shell
+
+curl --location --request GET 
+'https://qa.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2/payment/link/491/pos/carnaval/transaction
+/9e19ab8d-972e-4543-964b-83f9781963ac' \
+--data-raw ''
+```
+
+Nesse endpoint, será verificado o status do pagamento que foi realizado pelo cliente. 
+Para obter o status do pagamento, deve-se fazer um pooling desse endpoint. Enquanto a transação estiver com status pendente, seguramos a requisição por até 3 segundos.
+
+### HTTP Request 
+
+`GET https://{{env}}.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2//payment/link/{externalBusinessUnitId}/pos/{externalPosId}/transaction/{processorTransactionId}`
+
+> 200 - Success
+
+```shell
+{
+    "transactionId": "2d05b65c-0860-4742-9182-a98096380c39",
+    "processorTransactionId": "9e19ab8d-972e-4543-964b-83f9781963ac",
+    "externalTransactionId": "460229",
+    "status": "pending",
+    "amount": {
+        "value": 0.13,
+        "paid": 0.0,
+        "currency": "BRL"
+    },
+    "expiresAt": "2022-07-14T15:42:23.831849",
+    "nsu": null,
+    "wallet": "pix",
+    "paymentType": null,
+    "processorMessage": "success",
+    "errorReason": null
+}
+```
+
+> 200 -  Approved
+
+```shell
+{
+    "customerReceipt": {
+        "requireSignature": false,
+        "receiptData": [
+            {
+                "caracterStyle": null,
+                "text": "name=RECIBO%20INV%C3%81LIDO&key=header",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=C%c3%93PIA%20DO%20CLIENTE&key=cardholderHeader",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Data&value=14/07/2022&key=txdate",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Hora&value=11:43:19&key=txtime",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=M%c3%a9todo%20de%20pagamento&value=pix&key=walletOperationType",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Refer%c3%aancia&value=460229.2d05b65c-0860-4742-9182-a98096380c39&key=mref",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=TOTAL&value=R%24%200.13&key=totalAmount",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Auth.%20code&value=9e19ab8d-972e-4543-964b-83f9781963ac&key=authCode",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=APROVADO&key=approved",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Guarde%20para%20seu%20controle&key=retain",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Obrigado&key=thanks",
+                "endOfLineFlag": true
+            }
+        ]
+    },
+    "cashierReceipt": {
+        "requireSignature": false,
+        "receiptData": [
+            {
+                "caracterStyle": null,
+                "text": "name=RECIBO%20INV%C3%81LIDO&key=header",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=C%c3%93PIA%20DO%20ESTABELECIMENTO&key=cardholderHeader",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Data&value=14/07/2022&key=txdate",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Hora&value=11:43:19&key=txtime",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=M%c3%a9todo%20de%20pagamento&value=pix&key=walletOperationType",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Refer%c3%aancia&value=460229.2d05b65c-0860-4742-9182-a98096380c39&key=mref",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=TOTAL&value=R%24%200.13&key=totalAmount",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Auth.%20code&value=9e19ab8d-972e-4543-964b-83f9781963ac&key=authCode",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=APROVADO&key=approved",
+                "endOfLineFlag": true
+            }
+        ]
+    },
+    "transactionId": "2d05b65c-0860-4742-9182-a98096380c39",
+    "processorTransactionId": "9e19ab8d-972e-4543-964b-83f9781963ac",
+    "externalTransactionId": "460229",
+    "status": "approved",  //Pending, Approved, Cancelled, Expired ou Refunded
+    "amount": {
+        "value": 0.13,
+        "paid": 0.13,
+        "currency": "BRL"
+    },
+    "expiresAt": "0001-01-01T00:00:00",
+    "nsu": null,
+    "wallet": "pix",
+    "paymentType": null,
+    "processorMessage": "success",
+    "errorReason": null
+}
+```
+
+> 400 - Bad Request 
+
+```shell 
+
+{
+    "code": "Zvpebfbsg.NfcArgPber.Zip.GasPbagebyyre+Reebe.1",
+    "message": "Erro ao buscar 'Payment Link'",
+    "detailedMessage": "AspNetCoreOnGetError",
+    "helpUrl": "",
+    "details": [
+        {
+            "guid": "9fdae294-1407-4355-a660-cc3935875c72",
+            "code": "Ennf.Cnlzragf.Genafnpgvat.Nccyvpngvba.Freivprf.CnlzragYvaxNccFreivpr+Reebe.0",
+            "message": "Não foi possível encontrar o link de pagamento.",
+            "detailedMessage": "PaymentLinkNotFound"
+        }
+    ]
+}
+```
+
+* Responses:
+  * 200 - Success
+  * 200 - Status Approved
+  * 400 - Bad Request
+
+### Legenda
+
+*   200- Success  
+    1. **ProcessorTransactionId:** *Id da transação na processadora do pagamento.*
+    2. **externalTransactionId:** *Identificador da transação para o utilizador da API. (Ex. Identificador da transação no ERP).*
+    3. **Status:** O status pode ser Pending, Approved, Cancelled, Expired ou Refunded.*
+    4. **Currency:** *BRL, USD ou EUR.*
+    5. **expiresAt:** *Data e hora de expiração.*
+    6. **nsu:** *Identificador da transação na PSP.*
+
+
+## Recibo
+
+> CURL 
+
+```shell
+curl --location --request 
+GET 'https://qa.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2/payment/receipt/
+2d05b65c-0860-4742-9182-a98096380c39' \
+--header 'Authorization: Bearer 
+--data-raw ''
+```
+
+Esse endpoint realiza a busca do recibo de pagamento. 
+Após o pagamento através do link gerado (QR Code), será verificado o recibo para otenção dos dados da transação.
+A verificação é dada através da requisição GET, como descrito abaixo.
+
+### HTTP Request
+
+`GET https://{{env}}.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2/payment/receipt/2d05b65c-0860-4742-9182-a98096380c39`
+
+> 200 - Success
+
+```shell
+{
+    "transactionId": "2d05b65c-0860-4742-9182-a98096380c39",
+    "customerReceipt": {
+        "requireSignature": false,
+        "receiptData": [
+            {
+                "caracterStyle": null,
+                "text": "name=RECIBO%20INV%C3%81LIDO&key=header",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=C%c3%93PIA%20DO%20CLIENTE&key=cardholderHeader",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Data&value=14/07/2022&key=txdate",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Hora&value=11:42:27&key=txtime",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=M%c3%a9todo%20de%20pagamento&value=pix&key=walletOperationType",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Refer%c3%aancia&value=460229.2d05b65c-0860-4742-9182-a98096380c39&key=mref",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=TOTAL&value=R%24%200.13&key=totalAmount",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Auth.%20code&value=9e19ab8d-972e-4543-964b-83f9781963ac&key=authCode",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=APROVADO&key=approved",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Guarde%20para%20seu%20controle&key=retain",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Obrigado&key=thanks",
+                "endOfLineFlag": true
+            }
+        ]
+    },
+    "cashierReceipt": {
+        "requireSignature": false,
+        "receiptData": [
+            {
+                "caracterStyle": null,
+                "text": "name=RECIBO%20INV%C3%81LIDO&key=header",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=C%c3%93PIA%20DO%20ESTABELECIMENTO&key=cardholderHeader",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Data&value=14/07/2022&key=txdate",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Hora&value=11:42:27&key=txtime",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=M%c3%a9todo%20de%20pagamento&value=pix&key=walletOperationType",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Refer%c3%aancia&value=460229.2d05b65c-0860-4742-9182-a98096380c39&key=mref",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=TOTAL&value=R%24%200.13&key=totalAmount",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=Auth.%20code&value=9e19ab8d-972e-4543-964b-83f9781963ac&key=authCode",
+                "endOfLineFlag": true
+            },
+            {
+                "caracterStyle": null,
+                "text": "name=APROVADO&key=approved",
+                "endOfLineFlag": true
+            }
+        ]
+    },
+    "_expandables": []
+}
+```
+
+> 400 - Bad Request
+
+```shell
+{
+    "errors": {
+        "transactionId": [
+            "The value 'null' is not valid."
+        ]
+    },
+    "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+    "title": "One or more validation errors occurred.",
+    "status": 400,
+    "traceId": "00-724021aeb4df9eacf3974310645fd549-01e04832de5ac74b-00"
+}
+```
+
+* Responses: 
+    * 200 - Success 
+    * 400 - Bad Request
+
+
+## Verificação de Reembolso
+
+> CURL
+
+```shell
+
+curl --location --request POST 'https://qa.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2/payment/refund' \
+--header 'Content-Type: application/json' \
+--data-raw '{
+  "transactionId": "2d05b65c-0860-4742-9182-a98096380c39",
+  "processorTransactionId": "9e19ab8d-972e-4543-964b-83f9781963ac",
+  "externalBusinessUnitId": "491",
+  "externalTransactionId": "460229",
+  "amount": 0.13,
+  "currency": "BRL",
+  "posPadId": "1",
+  "externalPosId": "carnaval",
+  "expandables": [
+    "string"
+  ]
+}'
+
+```
+
+Esse endpoint é  usado para a verificação da solicitação de reembolso.
+
+Após o processo da geração do link (QR Code) e do pagamento, será verificado o recibo, em seguida a processadora retornará a opção para verificar se será necessário solicitar algum reembolso. 
+
+Será verificado através da requisição POST, informada abaixo.
+
+### HTTP Request 
+
+`POST https://{{env}}.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2/payment/refund`
+
+> 200 - Success
+
+```shell
+{
+    "transactionId": "176cf6f7-bd28-4ab9-b21f-44ce1b556ffa",
+    "processorTransactionId": "29ff6219-84e7-4359-b67d-34abfb86c427",
+    "externalTransactionId": "460229",
+    "refundStatus": "cancelled",
+    "processorName": "Totvs Pagamentos",
+    "transactionTimestamp": "2022-07-14 14:35:32.907554",
+    "processorMessage": "success",
+    "errorReason": null,
+    "aditionalResponse": null,
+    "customerReceipt": null,
+    "cashierReceipt": null,
+    "reversalResponse": {
+        "response": {
+            "result": "cancelled",
+            "additionalResponse": null,
+            "errorCondition": null
+        }
+    },
+    "acquirer": "pix",
+    "errorCode": 0
+}
+```
+   
+> 400 - Bad Request
+
+```shell
+    {
+    "code": "Zvpebfbsg.NfcArgPber.Zip.GasPbagebyyre+Reebe.2",
+    "message": "Erro ao salvar 'Payment Refund Transaction'",
+    "detailedMessage": "AspNetCoreOnPostError",
+    "helpUrl": "",
+    "details": [
+        {
+            "guid": "4382606c-c127-4998-95a1-008171901e0e",
+            "code": "Ennf.Cnlzragf.Genafnpgvat.Nccyvpngvba.Freivprf.CnlzragErshaqNccFreivpr+Reebe.1",
+            "message": "Erro ao obter transação da provedora de pagamento. Mensagem: Order already expired",
+            "detailedMessage": "PaymentRefundGettingTransactionFromProviderError"
+        }
+    ]
+}
+```
+
+
+* Responses:
+    * 200 - Success
+    * 400 - Bad Request
+   
+### Legenda 
+
+*   200 - Success 
+    1. **CustomerReceipt:** *Só volta preenchido se o campo ResersalResponse?.Response?.Result for refunded.*
+    2. **CashierReceipt:** *Só volta preenchido se o campo ResersalResponse?.Response?.Result for refunded.*
+    3. **Result:** *Cancelled ou Refunded.*
 
 # Kittens
 

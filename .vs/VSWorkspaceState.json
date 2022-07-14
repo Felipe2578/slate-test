@@ -1,7 +1,11 @@
 {
   "ExpandedNodes": [
     "",
-    "\\source"
+    "\\source",
+    "\\source\\includes",
+    "\\source\\javascripts",
+    "\\source\\layouts",
+    "\\source\\stylesheets"
   ],
   "PreviewInSolutionExplorer": false
 }
