@@ -6,11 +6,10 @@ language_tabs: # must be one of https://git.io/vQNgJ
   
 
 toc_footers:
-  - <a href='#'>Sign Up for a Developer Key</a>
-  - <a href='https://github.com/slatedocs/slate'>Documentation Powered by Slate</a>
+  - <a href='https://totvs.com.br'>Documentation Powered by TOTVS S.A</a>
 
 includes:
-  - errors
+  - errors.md.erb
 
 search: true
 
@@ -22,9 +21,7 @@ meta:
 ---
 
 # Introdução
-Bem vindo ao RaaS Payment, nessa documentação vamos te mostrar como usar e acessar as APIs e endpoints.
-
-
+Bem vindo ao RaaS Payment, através desta documentação iremos demonstrar como utilizar e acessar as APIs e endpoints dos serviços de pagamentos. 
 
 
 
@@ -39,27 +36,31 @@ Bem vindo ao RaaS Payment, nessa documentação vamos te mostrar como usar e ace
     "access_token": "token",
     "expires_in": 86400,
     "token_type": "Bearer"
+
 }
 ```
 Esse endpoint pode ser usado para realizar login.
 O Serviço de autenticação JWT (JSON Web Token) é gerado através das 6 chaves de autenticação de Usuário (username, password, client_id, client_secret, grant_type e scope ) criadas com o cadastro do usuário.
 
+A aba "Tests" do Postman, também pode ser preenchida com os dados descritos  ao lado através do shell, evitando o preenchimento do token no momento do envio da requisição.
 ### HTTP Request
 
+> Preenchimento da aba "Tests" no Postman
+
+```shell
+const jsonData = pm.response.json();
+pm.globals.set("__access_token",jsonData.access_token);
+```
+
 `POST https://{tenant}.rac.dev.totvs.app/totvs.rac/connect/token`
+
+
 
 ### Body
 
 Os parametros da requisição deve ser enviados em formato json.
 
-Parameter | Type    | Description
---------- | ------- |------
-grant_type | string | password
-username | string |Username do usuário com o perfil ROAcessorUser
-password | string |Password do usuário com o perfil ROAcessorUser
-client_id| string |Id do usuário com o perfil ROAcessorUser
-clientsecret | string |totvsraas@12345
-scope| string| openid authorization_api
+<%= image_tag "images/auth.png" %>
 
 ### Atenção
 <aside class="warning">Antes da expiração do access_token, deve-se solicitar um novo token. Caso um token expirado seja utilizado, as APIs do RaaS.Payments irão retornar 401.</aside>
@@ -158,6 +159,10 @@ Após a solicitação, a API retornará os métodos disponíveis. Para realizar 
 }
 ```
 
+### Fluxograma
+
+<%= image_tag "images/imgmethods.jpg" %>
+
 * Responses: 
     * 200 - Success
     * 400 - Bad Request
@@ -193,24 +198,24 @@ curl --location --request POST 'https://qa.raas.varejo.totvs.com.br/pay-hub/tran
   "amount": "0.13",
   "currency": "BRL",
   "customer": {
-    // "id": "2e3be1d1-b79b-4025-bbe6-ff49bf9b9653",
+     "id": "2e3be1d1-b79b-4025-bbe6-ff49bf9b9653",
     "email": "Khalid50@hotmail.com",
     "locale": "PT-BR",
     "name": "names",
     "ssn": "38893966000178"
   },
-  //"expirationDate": "2022-07-08T16:47:51.667Z",
+  expirationDate": "2022-07-08T16:47:51.667Z",
   "wallet": "pix"
-//   "due": {
-//         "dueDate": "08/04/2022",
-//         "dayValidAfterDue": 0,
-//         "amountDetails": {
-//         "rebate": {
-//             "value": 2.0,
-//             "modality": "FixedAmount"
-//             }
-//        }
-//     }
+   "due": {
+         "dueDate": "08/04/2022",
+         "dayValidAfterDue": 0,
+         "amountDetails": {
+         "rebate": {
+             "value": 2.0,
+             "modality": "FixedAmount"
+             }
+        }
+     }
 }'
 ```
 
@@ -219,6 +224,12 @@ Esse endpoint é utilizado para gerar link para pagamento.
 
 Após receber o retorno dos métodos de pagamento disponíveis, será necessário solicitar um link de pagamento (QR CODE), através da requisição POST
 descrita abaixo. Para essa solicitação deve ser utilizada as chaves de autenticação (Content-Type, Content-Length, Host, User-Agent, Accept, Accept-Encoding e Connection).
+
+Também é possível escolher a forma de pagamento desejada, sendo elas:
+
+  * Wallet
+  * Pix
+  * Shipay Pagador
 
 
 ### HTTP Request
@@ -231,6 +242,10 @@ descrita abaixo. Para essa solicitação deve ser utilizada as chaves de autenti
     * 201 - Created
     * 400 - Bad Request
 
+### Fluxograma
+
+<%= image_tag "images/postPayments.jpg" %>
+
 > Preenchimento de exemplo no Body
 
 ```shell
@@ -241,24 +256,24 @@ descrita abaixo. Para essa solicitação deve ser utilizada as chaves de autenti
   "amount": "0.13",
   "currency": "BRL",
   "customer": {
-    // "id": "{{$guid}}",
+     "id": "{{$guid}}",
     "email": "{{$randomEmail}}",
     "locale": "PT-BR",
     "name": "names",
     "ssn": "38893966000178"
   },
-  //"expirationDate": "{{current_time}}",
+  "expirationDate": "{{current_time}}",
   "wallet": "pix"
-//   "due": {
-//         "dueDate": "08/04/2022",
-//         "dayValidAfterDue": 0,
-//         "amountDetails": {
-//         "rebate": {
-//             "value": 2.0,
-//             "modality": "FixedAmount"
-//             }
-//        }
-//     }
+   "due": {
+         "dueDate": "08/04/2022",
+         "dayValidAfterDue": 0,
+         "amountDetails": {
+         "rebate": {
+             "value": 2.0,
+             "modality": "FixedAmount"
+             }
+        }
+     }
 }
 ```
 
@@ -312,6 +327,15 @@ Os parâmetros da requisição devem ser enviados em formato json.
 
 Conforme exemplo de preenchimento do body, os retornos são os representados na coluna shell. 
 
+### Campos obrigatórios
+
+  * externalBusinessUnitId: Id externo da unidade de negócio cadastrada
+  * externalPosId:  Id externo do ponto de venda cadastrado
+  * processorTransactionId: Id da transação na processadora
+  * Amount: valor da transação
+  * Currency: moeda utilizada
+  * Wallet: tipo de wallet, pix ou diversas carteiras digitais
+
 ### Legenda 
 
 * 201 - Created    
@@ -326,7 +350,7 @@ Conforme exemplo de preenchimento do body, os retornos são os representados na 
 
 
 ### Observação
-<aside class="warning">O parâmetro "currency" que está localizado no Body, foi utilizado da seguinte forma: "currency": "B". Portanto é obtida a resposta 400.</aside>
+<aside class="warning">O parâmetro "currency" que está localizado no Body, foi utilizado da seguinte forma: "currency": "B". Devido ao preenchimento errôneo, é obtida a resposta 400.</aside>
 
 ## Status do Pagamento
 
@@ -338,6 +362,8 @@ curl --location --request GET
 'https://qa.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2/payment/link/491/pos/carnaval/transaction
 /9e19ab8d-972e-4543-964b-83f9781963ac' \
 --data-raw ''
+
+
 ```
 
 Nesse endpoint, será verificado o status do pagamento que foi realizado pelo cliente. 
@@ -526,15 +552,34 @@ Para obter o status do pagamento, deve-se fazer um pooling desse endpoint. Enqua
   * 200 - Status Approved
   * 400 - Bad Request
 
+### Fluxograma
+
+<%= image_tag "images/statusPayments.jpg" %>
+
+### Campos obrigatórios
+
+  * externalBusinessUnitId: Id externo da unidade de negócio cadastrada
+  * externalPosId:  Id externo do ponto de venda cadastrado
+  * processorTransactionId: Id da transação na processadora
+
 ### Legenda
 
-*   200- Success  
+*   200 - Success  
     1. **ProcessorTransactionId:** *Id da transação na processadora do pagamento.*
     2. **externalTransactionId:** *Identificador da transação para o utilizador da API. (Ex. Identificador da transação no ERP).*
-    3. **Status:** O status pode ser Pending, Approved, Cancelled, Expired ou Refunded.*
-    4. **Currency:** *BRL, USD ou EUR.*
-    5. **expiresAt:** *Data e hora de expiração.*
-    6. **nsu:** *Identificador da transação na PSP.*
+    3. **Currency:** *BRL, USD ou EUR.*
+    4. **expiresAt:** *Data e hora de expiração.*
+    5. **nsu:** *Identificador da transação na PSP.*
+    6. **Status:** *Os possíveis status das transações são:*
+      * *Pending*
+      * *Approved*
+      * *Expired*
+      * *Cancelled*
+      * *Refunded*
+<%= image_tag "images/status.jpg" %>
+    
+    
+    
 
 
 ## Recibo
@@ -555,7 +600,7 @@ A verificação é dada através da requisição GET, como descrito abaixo.
 
 ### HTTP Request
 
-`GET https://{{env}}.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2/payment/receipt/2d05b65c-0860-4742-9182-a98096380c39`
+`GET https://{{env}}.raas.varejo.totvs.com.br/pay-hub/transacting/api/v2/payment/receipt/{{transaction_id}}`
 
 > 200 - Success
 
@@ -697,6 +742,10 @@ A verificação é dada através da requisição GET, como descrito abaixo.
     * 400 - Bad Request
 
 
+### Fluxograma
+
+<%= image_tag "images/getReceipt.jpg" %>
+
 ## Verificação de Reembolso
 
 > CURL
@@ -781,7 +830,15 @@ Será verificado através da requisição POST, informada abaixo.
 * Responses:
     * 200 - Success
     * 400 - Bad Request
-   
+
+### Campos obrigatórios
+
+  * externalBusinessUnitId: Id externo da unidade de negócio cadastrada
+  * externalPosId:  Id externo do ponto de venda cadastrado
+  * processorTransactionId: Id da transação na processadora
+  * Amount: valor da transação
+  * Currency: moeda utilizada
+    
 ### Legenda 
 
 *   200 - Success 
